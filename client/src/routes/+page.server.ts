@@ -1,5 +1,13 @@
-import { apiRequest } from "../lib/api.util";
+import { animeRequest, favoriteRequest } from "../lib/api.util";
 import type { Actions, PageServerLoad } from "./$types";
+
+import { error } from "@sveltejs/kit";
+
+import { z } from "zod";
+
+const unfavoriteData = z.object({
+    id: z.string(),
+});
 
 type RecommendedAnime = {
     data: {
@@ -19,20 +27,32 @@ type RecommendedAnime = {
     }[];
 };
 
-export const load = (async () => {
-    const recommended = await apiRequest<RecommendedAnime>(
+export const load = (async ({ locals }) => {
+    const recommended = await animeRequest<RecommendedAnime>(
         "recommendations/anime",
     );
+    const favorites = await favoriteRequest(locals.pb);
     return {
+        favorites: favorites,
         recommended: recommended,
     };
 }) satisfies PageServerLoad;
 
 export const actions = {
-    formAction: async ({ request }) => {
-        const form = await request.formData();
-        const id = form.get("id");
+    removeFromFavorites: async ({ locals, request }) => {
+        const form = Object.fromEntries(await request.formData());
 
-        return { id };
+        const parsed = unfavoriteData.safeParse(form);
+
+        if (parsed.success) {
+            try {
+                await locals.pb.collection("favorites").delete(parsed.data.id);
+                return { success: true };
+            } catch (err) {
+                throw new Error(`Failed to remove from favorites`);
+            }
+        } else {
+            throw error(400, { message: "Invalid form data" });
+        }
     },
 } satisfies Actions;
