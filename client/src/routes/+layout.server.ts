@@ -1,7 +1,9 @@
-import favorites from "$lib/data/favorites";
+import { favoriteRequest } from "$lib/api.util";
+
 import type { LayoutServerLoad } from "./$types";
 
-export const load = (async () => {
+export const load = (async ({ locals }) => {
+    const favorites = await favoriteRequest(locals.pb);
     return {
         favorites: favorites,
     };
